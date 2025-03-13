@@ -34,8 +34,9 @@ import argparse
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--train_data_path', default='/home/zhaoyiz/projects/reasoning/efficient-reasoning/outputs/openai_gsm8k_results_deepseek-ai_DeepSeek-R1-Distill-Qwen-1.5B_32768.json')
+    parser.add_argument('--train_data_path', default='/home/zhaoyiz/projects/reasoning/efficient-reasoning/outputs/openai_gsm8k_train_results_deepseek-ai_DeepSeek-R1-Distill-Qwen-1.5B_32768.json')
     parser.add_argument('--test_data_path', default='/home/zhaoyiz/projects/reasoning/efficient-reasoning/outputs/openai_gsm8k_results_deepseek-ai_DeepSeek-R1-Distill-Qwen-1.5B_32768.json')
+    parser.add_argument('--local_dir', type=str, default="~/data/gsm8k_verify_deepseek")
     parser.add_argument('--hdfs_dir', default=None)
 
     args = parser.parse_args()
@@ -46,44 +47,42 @@ if __name__ == '__main__':
         test_dataset = json.load(f)
     # train_dataset = dataset['train']
     # test_dataset = dataset['test']
+    train_dataset = datasets.Dataset.from_list(train_dataset)
+    test_dataset = datasets.Dataset.from_list(test_dataset)
 
-    prompt_template = "You will be given the student's response. Read through the student's response step by step to see if there are mistakes. Answer True if there are no mistakes, and False otherwise. Put your final answer (True or False) within \\boxed{{}}. \n\nResponse: {response}"
+    prompt_template = "You are going to verify a student's answer. You will be given a math question, as well as the student's response. The response contains the reasoning process as well as the final answer. First extract the student's final answer, then read through the student's response to see if there are mistakes. Finally, check the student's answer. Your final answer is True if the student's answer is true, and False otherwise. Put your final answer (True or False) within \\boxed{{}}. \n\nQuestion: {question}\n\nResponse: {response}"
 
     #!TODO
     # add a row to each data item that represents a unique id
-    def make_map_fn(split):
+    def process_fn(example, idx):
+        # question_raw = example.pop('question')
 
-        def process_fn(example, idx):
-            # question_raw = example.pop('question')
+        # question = question_raw + ' ' + instruction_following
 
-            # question = question_raw + ' ' + instruction_following
-
-            # answer_raw = example.pop('answer')
-            # solution = extract_solution(answer_raw)
-            data = {
-                "data_source": data_source,
-                "prompt": [{
-                    "role": "user",
-                    "content": question,
-                }],
-                "ability": "math",
-                "reward_model": {
-                    "style": "rule",
-                    "ground_truth": solution
-                },
-                "extra_info": {
-                    'split': split,
-                    'index': idx,
-                    'answer': answer_raw,
-                    "question": question_raw,
-                }
+        # answer_raw = example.pop('answer')
+        # solution = extract_solution(answer_raw)
+        data = {
+            "data_source": "verify",
+            "prompt": [{
+                "role": "user",
+                "content": prompt_template.format(
+                    question = example['question'],
+                    response = example['responses'][0]
+                    )}],
+            "ability": "math",
+            "reward_model": {
+                "style": "rule",
+                "ground_truth": str(example["accuracy"][0])
+            },
+            "extra_info": {
+                "extracted_answer": example["prediction"],
+                "ground_truth": example["gold"]
             }
-            return data
+        }
+        return data
 
-        return process_fn
-
-    train_dataset = train_dataset.map(function=make_map_fn('train'), with_indices=True)
-    test_dataset = test_dataset.map(function=make_map_fn('test'), with_indices=True)
+    train_dataset = train_dataset.map(function=process_fn, with_indices=True, remove_columns=train_dataset.column_names)
+    test_dataset = test_dataset.map(function=process_fn, with_indices=True, remove_columns=test_dataset.column_names )
 
     local_dir = args.local_dir
     hdfs_dir = args.hdfs_dir

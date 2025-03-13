@@ -55,42 +55,42 @@ if __name__ == '__main__':
     state_dict = torch.load(os.path.join(local_dir, f'model_world_size_{world_size}_rank_{rank}.pt'), map_location='cpu')
     pivot_key = sorted(list(state_dict.keys()))[0]
     weight = state_dict[pivot_key]
-    assert isinstance(weight, torch.distributed._tensor.DTensor), type(weight)
-    # get sharding info
-    device_mesh = weight.device_mesh
-    mesh = device_mesh.mesh
-    mesh_dim_names = device_mesh.mesh_dim_names
+    # assert isinstance(weight, torch.distributed._tensor.DTensor), type(weight)
+    # # get sharding info
+    # device_mesh = weight.device_mesh
+    # mesh = device_mesh.mesh
+    # mesh_dim_names = device_mesh.mesh_dim_names
 
-    print(f'Got device mesh {mesh}, mesh_dim_names {mesh_dim_names}')
+    # print(f'Got device mesh {mesh}, mesh_dim_names {mesh_dim_names}')
 
-    assert mesh_dim_names in (
-        ('fsdp',),
-    ), f'Unsupported mesh_dim_names {mesh_dim_names}'
+    # assert mesh_dim_names in (
+    #     ('fsdp',),
+    # ), f'Unsupported mesh_dim_names {mesh_dim_names}'
 
-    if 'tp' in mesh_dim_names:
-        # fsdp * tp
-        total_shards = mesh.shape[-1] * mesh.shape[-2]
-        mesh_shape = (mesh.shape[-2], mesh.shape[-1])
-    else:
-        # fsdp
-        total_shards = mesh.shape[-1]
-        mesh_shape = (mesh.shape[-1],)
+    # if 'tp' in mesh_dim_names:
+    #     # fsdp * tp
+    #     total_shards = mesh.shape[-1] * mesh.shape[-2]
+    #     mesh_shape = (mesh.shape[-2], mesh.shape[-1])
+    # else:
+    #     # fsdp
+    #     total_shards = mesh.shape[-1]
+    #     mesh_shape = (mesh.shape[-1],)
 
-    print(f'Processing model shards with {total_shards} {mesh_shape} in total')
+    # print(f'Processing model shards with {total_shards} {mesh_shape} in total')
 
     model_state_dict_lst = []
     model_state_dict_lst.append(state_dict)
-    model_state_dict_lst.extend([""] * (total_shards - 1))
+    # model_state_dict_lst.extend([""] * (total_shards - 1))
 
-    def process_one_shard(rank):
-        model_path = os.path.join(local_dir, f'model_world_size_{world_size}_rank_{rank}.pt')
-        state_dict = torch.load(model_path, map_location='cpu', weights_only=False)
-        model_state_dict_lst[rank] = state_dict
-        return state_dict
+    # def process_one_shard(rank):
+    #     model_path = os.path.join(local_dir, f'model_world_size_{world_size}_rank_{rank}.pt')
+    #     state_dict = torch.load(model_path, map_location='cpu', weights_only=False)
+    #     model_state_dict_lst[rank] = state_dict
+    #     return state_dict
 
-    with ThreadPoolExecutor(max_workers=min(32, os.cpu_count())) as executor:
-        for rank in range(1, total_shards):
-            executor.submit(process_one_shard, rank)
+    # with ThreadPoolExecutor(max_workers=min(32, os.cpu_count())) as executor:
+    #     for rank in range(1, total_shards):
+    #         executor.submit(process_one_shard, rank)
     state_dict = {}
     param_placements: Dict[str, List[Placement]] = {}
     keys = set(model_state_dict_lst[0].keys())
