@@ -2,6 +2,7 @@ pwd
 data_dir=$HOME/projects/data
 model=Qwen/Qwen2.5-Math-1.5B-Instruct
 
+ray stop --force && ray start --head --include-dashboard=True
 # python3 examples/data_preprocess/gsm8k_response.py --local_dir $HOME/projects/data/gsm8k_verify_deepseek
 python3 -c "import transformers; transformers.pipeline('text-generation', model='$model')"
 PYTHONUNBUFFERED=1 python3 -m verl.trainer.main_ppo \

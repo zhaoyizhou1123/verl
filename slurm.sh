@@ -7,8 +7,9 @@
 #SBATCH --cpus-per-task 4
 #SBATCH --chdir /home/zhaoyiz/projects/reasoning/verl
 
-# script=examples/ppo_trainer/verify_qwen2.5-math-1.5b_gsm8k.sh
-script=examples/ppo_trainer/verify_deepseek-1.5b_gsm8k.sh
+script=examples/ppo_trainer/verify_qwen2.5-math-1.5b_gsm8k.sh
+# script=examples/ppo_trainer/verify_deepseek-1.5b_gsm8k.sh
 
 local_dir=.local_verl
+# local_dir=.local_reason
 apptainer exec --nv -B $HOME/$local_dir:$HOME/.local --env-file  $HOME/containers/env.txt $HOME/containers/pytorch_23.11-py3.sif /bin/bash $script
